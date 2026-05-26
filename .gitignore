@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.env
+*.png
+gen_promo_image.py
