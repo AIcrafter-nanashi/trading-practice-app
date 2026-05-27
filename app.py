@@ -118,11 +118,13 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def reset_session(config: AppConfig) -> None:
+    import random
     data = load_market_data(config.ticker, config.interval, config.bar_limit)
     if data.empty or len(data) <= MIN_START_INDEX + 5:
         st.error("十分なマーケットデータを取得できませんでした。銘柄や足種を変更してください。")
         return
-    start_index = MIN_START_INDEX
+    max_start = max(MIN_START_INDEX, len(data) - config.bar_limit - 1)
+    start_index = random.randint(MIN_START_INDEX, max_start)
     end_index = min(len(data) - 1, start_index + config.bar_limit)
     st.session_state.update({
         "screen": "practice",
