@@ -19,11 +19,11 @@ INITIAL_CAPITAL = 100000.0
 MIN_START_INDEX = 30
 
 TICKERS = {
-    "BTC/USDT": "BTCUSDT",
-    "ETH/USDT": "ETHUSDT",
-    "SOL/USDT": "SOLUSDT",
-    "XRP/USDT": "XRPUSDT",
-    "BNB/USDT": "BNBUSDT",
+    "BTC/USDT": "XBTUSD",
+    "ETH/USDT": "ETHUSD",
+    "SOL/USDT": "SOLUSD",
+    "XRP/USDT": "XRPUSD",
+    "BNB/USDT": "BNBUSD",
 }
 
 _SSL_CTX = ssl.create_default_context()
@@ -31,8 +31,8 @@ _SSL_CTX.check_hostname = False
 _SSL_CTX.verify_mode = ssl.CERT_NONE
 
 
-INTERVAL_MAP = {"1日足": "1d", "1時間足": "1h", "15分足": "15m"}
-INTERVAL_LIMIT = {"1d": 1000, "1h": 1000, "15m": 1000}
+INTERVAL_MAP = {"1日足": "1440", "1時間足": "60", "15分足": "15"}
+INTERVAL_LIMIT = {"1440": 720, "60": 720, "15": 720}
 
 
 @dataclass(frozen=True)
@@ -72,23 +72,28 @@ def init_session_state() -> None:
 @st.cache_data(show_spinner=False)
 def load_market_data(ticker: str, interval: str, bars: int) -> pd.DataFrame:
     symbol = TICKERS.get(ticker, ticker)
-    limit = min(max(bars + MIN_START_INDEX + 50, 200), 1000)
+    limit = min(max(bars + MIN_START_INDEX + 50, 200), 720)
     url = (
-        f"https://api.binance.com/api/v3/klines"
-        f"?symbol={symbol}&interval={interval}&limit={limit}"
+        f"https://api.kraken.com/0/public/OHLC"
+        f"?pair={symbol}&interval={interval}&count={limit}"
     )
     try:
         with urllib.request.urlopen(url, context=_SSL_CTX, timeout=15) as resp:
-            data = json.loads(resp.read())
+            payload = json.loads(resp.read())
     except Exception as e:
         st.error(f"データ取得エラー: {e}")
         return pd.DataFrame()
 
-    df = pd.DataFrame(data, columns=[
-        "open_time", "open", "high", "low", "close", "volume",
-        "close_time", "qv", "trades", "tbv", "tqv", "ignore",
+    if payload.get("error"):
+        st.error(f"データ取得に失敗しました: {payload['error']}")
+        return pd.DataFrame()
+
+    result_key = next(k for k in payload["result"] if k != "last")
+    raw = payload["result"][result_key]
+    df = pd.DataFrame(raw, columns=[
+        "open_time", "open", "high", "low", "close", "vwap", "volume", "trades",
     ])
-    df["open_time"] = pd.to_datetime(df["open_time"], unit="ms")
+    df["open_time"] = pd.to_datetime(df["open_time"], unit="s")
     df = df.set_index("open_time")
     for col in ["open", "high", "low", "close"]:
         df[col] = df[col].astype(float)
