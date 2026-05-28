@@ -149,19 +149,40 @@ def render_chart(df: pd.DataFrame, current_index: int) -> None:
     fig.add_trace(go.Candlestick(
         x=visible.index, open=visible["open"], high=visible["high"],
         low=visible["low"], close=visible["close"], name="Price",
+        increasing_line_color="#26a69a", decreasing_line_color="#ef5350",
     ))
     fig.add_trace(go.Scatter(x=visible.index, y=visible["ma5"], mode="lines",
                              name="MA5（短期）", line=dict(color="orange", width=1.5)))
     fig.add_trace(go.Scatter(x=visible.index, y=visible["ma20"], mode="lines",
                              name="MA20（長期）", line=dict(color="royalblue", width=1.5)))
+    fig.add_trace(go.Scatter(x=visible.index, y=visible["bb_upper"], mode="lines",
+                             name="BB上限", line=dict(color="#ef9a9a", width=1, dash="dot")))
+    fig.add_trace(go.Scatter(x=visible.index, y=visible["bb_lower"], mode="lines",
+                             name="BB下限", line=dict(color="#4fc3f7", width=1, dash="dot"),
+                             fill="tonexty", fillcolor="rgba(100,100,255,0.04)"))
     fig.update_layout(
-        height=500, margin=dict(l=10, r=10, t=28, b=10),
-        xaxis_rangeslider_visible=False, template="plotly_white",
+        height=500, margin=dict(l=40, r=20, t=40, b=40),
+        xaxis_rangeslider_visible=False, template="plotly_dark",
+        paper_bgcolor="#0e1117", plot_bgcolor="#131722",
     )
     st.plotly_chart(fig, use_container_width=True)
 
 
+_METRIC_CSS = """
+<style>
+[data-testid="metric-container"] {
+    background: #1a1a2e;
+    border: 1px solid #2d2d4e;
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+}
+[data-testid="stMetricValue"] { font-size: 1.4rem; font-weight: 700; }
+</style>
+"""
+
+
 def render_status_panel() -> None:
+    st.markdown(_METRIC_CSS, unsafe_allow_html=True)
     user_pos = st.session_state.user_position
     col1, col2 = st.columns(2)
     col1.metric("資金", f"{st.session_state.user_capital:,.0f}円")
@@ -171,25 +192,31 @@ def render_status_panel() -> None:
     )
     if user_pos:
         side = "🔼 Buy" if user_pos["side"] == "long" else "🔽 Sell"
-        st.info(
-            f"{side} | エントリー: {user_pos['entry_price']:.4f} | "
-            f"SL: {user_pos['sl']:.4f} | TP: {user_pos['tp']:.4f}"
+        st.markdown(
+            f"<div style='background:#1a2a3a;border-left:3px solid #4fc3f7;border-radius:8px;"
+            f"padding:0.6rem 1rem;margin-top:0.4rem;font-size:0.9rem;'>"
+            f"{side} &nbsp;｜&nbsp; エントリー: <b>{user_pos['entry_price']:.4f}</b>"
+            f" &nbsp;｜&nbsp; SL: <span style='color:#ef5350;'>{user_pos['sl']:.4f}</span>"
+            f" &nbsp;｜&nbsp; TP: <span style='color:#26a69a;'>{user_pos['tp']:.4f}</span></div>",
+            unsafe_allow_html=True,
         )
 
 
 def render_controls() -> None:
     has_pos = st.session_state.user_position is not None
-    c1, c2, c3, c4, c5 = st.columns(5)
-    if c1.button("Next ▶", use_container_width=True):
+    st.write("")
+    c1, c2 = st.columns(2)
+    if c1.button("Next ▶", use_container_width=True, type="primary"):
         advance_one_bar(); st.rerun()
-    if c2.button("🟢 Buy", disabled=has_pos, use_container_width=True):
-        open_user_position("long"); st.rerun()
-    if c3.button("🔴 Sell", disabled=has_pos, use_container_width=True):
-        open_user_position("short"); st.rerun()
-    if c4.button("Close", disabled=not has_pos, use_container_width=True):
-        close_user_position("manual"); st.rerun()
-    if c5.button("Finish", use_container_width=True):
+    if c2.button("🏁 Finish", use_container_width=True):
         finish_session(); st.rerun()
+    c3, c4, c5 = st.columns(3)
+    if c3.button("🟢 Buy", disabled=has_pos, use_container_width=True):
+        open_user_position("long"); st.rerun()
+    if c4.button("🔴 Sell", disabled=has_pos, use_container_width=True):
+        open_user_position("short"); st.rerun()
+    if c5.button("✖ Close", disabled=not has_pos, use_container_width=True):
+        close_user_position("manual"); st.rerun()
 
 
 def advance_one_bar() -> None:
@@ -1311,7 +1338,7 @@ def render_top_screen() -> None:
     st.markdown(_TOP_CSS, unsafe_allow_html=True)
 
     st.markdown('<p class="hero-title">📈 トレード練習アプリ</p>', unsafe_allow_html=True)
-    st.markdown('<p class="hero-sub">チャートの読み方を学んで、AIと同じ目線で相場を見よう。</p>', unsafe_allow_html=True)
+    st.markdown('<p class="hero-sub">チャートパターンを覚えて、売買判断を鍛える。クイズ形式でAIが採点＆解説。</p>', unsafe_allow_html=True)
 
     left, right = st.columns([3, 2])
 
